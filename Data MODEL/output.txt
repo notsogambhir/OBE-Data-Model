@@ -1,0 +1,373 @@
+--- DOCX Content ---
+NBA OBE Portal: Comprehensive Attainment Logic Guide
+This guide details the mathematical framework used to transition from raw student performance to Program Outcome (PO) achievement levels.
+Example 1: Single Student, Many-to-Many Mapping & Attempt Logic
+Scenario: A student takes an assessment where questions are mapped to multiple COs. Unattempted questions are excluded from the “Maximum Obtainable” denominator for that specific student.
+Data Setup:
+Course Target: 50%
+Question 1 (CO1): Max 10, Obtained 8
+Question 2 (CO1 & CO2): Max 20, Unattempted
+Question 3 (CO2): Max 10, Obtained 7
+Mathematics:
+CO1 Calculation:
+Questions involved: Q1, Q2.
+Because Q2 is unattempted, it is ignored in both numerator and denominator.
+Max Obtainable: 10 (Q1)
+Attained Marks: 8 (Q1)
+CO1 Percentage: (8 / 10) * 100 = 80%
+Result: Attained (80% >= 50%)
+CO2 Calculation:
+Questions involved: Q2, Q3.
+Max Obtainable: 10 (Q3)
+Attained Marks: 7 (Q3)
+CO2 Percentage: (7 / 10) * 100 = 70%
+Result: Attained (70% >= 50%)
+Example 2.1: Class Attainment with Fixed Weightages (20/20/20/40)
+Scenario: 3 Students, 4 Assessments. CO1 attainment is calculated using a weighted sum of all exams.
+Setup:
+Weights: ST1 (20%), ST2 (20%), ST3 (20%), External (40%)
+Course Target: 50%
+Thresholds: Level 3 (80%), Level 2 (70%), Level 1 (60% of students meeting target)
+Student
+ST1 (CO1)
+ST2 (CO1)
+ST3 (CO1)
+External (CO1)
+Weighted Total %
+S01
+80%
+70%
+60%
+40%
+(80x0.2)+(70x0.2)+(60x0.2)+(40x0.4) = 58%
+S02
+40%
+40%
+30%
+50%
+(40x0.2)+(40x0.2)+(30x0.2)+(50x0.4) = 42%
+S03
+90%
+80%
+90%
+70%
+(90x0.2)+(80x0.2)+(90x0.2)+(70x0.4) = 80%
+Class Calculation:
+Students meeting 50% target: S01, S03 (2 out of 3)
+Success Rate: (2 / 3) * 100 = 66.6%
+Attainment Level: 66.6% is >= 60% (Level 1) but < 70%. Result: Level 1.
+Example 2.2: Class Attainment with “Best of 2” Logic (30/30/40)
+Scenario: CO1 attainment uses the Best 2 scores from 3 STs (30% each) and 40% from External.
+Setup:
+Course Target: 60%
+Student
+ST1 %
+ST2 %
+ST3 %
+Best 2 Avg
+External %
+Weighted Total %
+S01
+40%
+80%
+90%
+(80+90)/2 = 85%
+50%
+(85x0.6) + (50x0.4) = 71%
+S02
+70%
+30%
+60%
+(70+60)/2 = 65%
+40%
+(65x0.6) + (40x0.4) = 55%
+S03
+50%
+60%
+70%
+(60+70)/2 = 65%
+65%
+(65x0.6) + (65x0.4) = 65%
+Class Calculation:
+Students meeting 60% target: S01, S03 (2 out of 3)
+Success Rate: 66.6%. (Matches Level 1 thresholds if set at 60%).
+Example 3: Variable Thresholds & Attainment Levels
+Scenario: Comparing two courses with different rigor and success definitions.
+Policy:
+Level 3: >= 80% students meet target.
+Level 2: >= 70% students meet target.
+Level 1: >= 60% students meet target.
+Course
+Student Target
+% Students meeting Target
+Level
+Data Structures
+60%
+72%
+2
+Programming in C
+50%
+85%
+3
+Example 4: Complex End-to-End Workflow (M:M & Attempt Logic)
+Process Description:
+Question Level: Every question is tagged to one or more COs.
+Student Attempt Filter: For Student X, if Question Y is ‘U’ (Unattempted), Question Y is removed from the Max Marks calculation for all COs it was mapped to.
+CO Student %: For every CO, sum the obtained marks and divide by the student-specific adjusted max marks.
+Binary Mapping: If Student CO % >= Course Target, the student is “Successful” (1), else (0).
+CO Attainment Level: Calculate % of successful students in the section. Map this % to Level 1, 2, or 3 based on course-specific thresholds.
+Detailed Student Table (CO1 Example):
+Q1 (CO1): 10 Marks
+Q2 (CO1 & CO2): 10 Marks
+Target: 50%
+Student
+Q1 (Obt)
+Q2 (Obt)
+CO1 Max (Adj)
+CO1 Obt
+CO1 %
+Success
+S01
+8
+2
+20
+10
+50%
+1
+S02
+4
+U
+10
+4
+40%
+0
+S03
+U
+9
+10
+9
+90%
+1
+Section Result: 2/3 Success = 66.6%. If Level 1 threshold is 60%, CO1 Attainment = 1.
+Example 5: CO-PO Matrix & PO Attainment
+Scenario: Calculating the final PO achievement using a weighted linkage matrix.
+1. CO-PO Linkage Matrix (Correlation Strength 1-3):
+Course Outcomes
+PO1
+PO2
+PO3
+CO1 (Attained Level: 3)
+3
+2
+-
+CO2 (Attained Level: 2)
+1
+3
+2
+CO3 (Attained Level: 1)
+-
+1
+3
+2. Direct PO Attainment Mathematics: Formula: Σ(CO Level * Linkage Strength) / Σ(Linkage Strength)
+PO1: (3*3 + 2*1) / (3+1) = 11 / 4 = 2.75
+PO2: (3*2 + 2*3 + 1*1) / (2+3+1) = 13 / 6 = 2.17
+PO3: (2*2 + 1*3) / (2+3) = 7 / 5 = 1.40
+3. Final PO Calculation (Direct + Indirect): Weights: Direct (80%), Indirect (20%).
+If PO1 Indirect (Survey) score is 3.0:
+Final PO1 = (2.75 * 0.8) + (3.0 * 0.2) = 2.2 + 0.6 = 2.80 / 3.0
+Example 6: Large-Scale Section Calculation (10 Students, 4 Components)
+Scenario: 10 Students (S01-S10) evaluated across four assessments with specific weightages.
+Internal Weightage: ST1 (20%), ST2 (20%), ST3 (20%)
+External Weightage: ETE (40%)
+Course Target: 50%
+Attainment Levels: Level 3 (80%), Level 2 (70%), Level 1 (60% of students)
+Step 1: Mapping Matrix (Many-to-Many)
+Questions in each exam are mapped to COs. Max marks for each question are shown.
+Exam
+Question
+Max Marks
+Mapped COs
+ST1
+Q1-Q3
+10 each
+Q1->CO1, Q2->CO1&CO2, Q3->CO2
+ST1
+Q4-Q5
+10 each
+Q4->CO3, Q5->CO3&CO4
+ST2
+Q1-Q3
+10 each
+Q1->CO1, Q2->CO2, Q3->CO3
+ST2
+Q4-Q5
+10 each
+Q4->CO4, Q5->CO5
+ST3
+Q1-Q5
+10 each
+Q1->CO1, Q2->CO2, Q3->CO3, Q4->CO4, Q5->CO5
+ETE
+Q1-Q10
+10 each
+Q1,2->CO1
+Step 2: Sample Student Raw Data (S01 - Focus)
+U = Unattempted (Removes marks from both numerator and denominator)
+Assessment
+Q1
+Q2
+Q3
+Q4
+Q5
+Q6
+Q7
+Q8
+Q9
+Q10
+ST1
+8
+2
+U
+5
+5
+-
+-
+-
+-
+-
+ST2
+9
+1
+4
+7
+U
+-
+-
+-
+-
+-
+ST3
+7
+8
+9
+3
+10
+-
+-
+-
+-
+-
+ETE
+10
+9
+4
+5
+8
+7
+U
+6
+1
+9
+Step 3: Mathematical Breakdown for Student S01 (CO1 Only)
+Component 1: ST1 Calculation for CO1
+Mapping: Q1 (10), Q2 (10). Both attempted.
+Max: 10 + 10 = 20. Obtained: 8 + 2 = 10. ST1_CO1 % = 50%
+Component 2: ST2 Calculation for CO1
+Mapping: Q1 (10). Attempted.
+Max: 10. Obtained: 9. ST2_CO1 % = 90%
+Component 3: ST3 Calculation for CO1
+Mapping: Q1 (10). Attempted.
+Max: 10. Obtained: 7. ST3_CO1 % = 70%
+Component 4: ETE Calculation for CO1
+Mapping: Q1 (10), Q2 (10). Attempted.
+Max: 10 + 10 = 20. Obtained: 10 + 9 = 19. ETE_CO1 % = 95%
+Final Weighted Attainment for S01 (CO1):
+Calculation: (50 * 0.2) + (90 * 0.2) + (70 * 0.2) + (95 * 0.4)
+Result: 10 + 18 + 14 + 38 = 80%
+Success Check: 80% >= 50% Target. S01 is SUCCESSFUL for CO1.
+Step 4: Class-Wide Attainment (Final Result Table)
+The following table summarizes the Final Weighted CO % for all 10 students.
+Student
+CO1 %
+CO2 %
+CO3 %
+CO4 %
+CO5 %
+S01
+80%
+45%
+72%
+61%
+85%
+S02
+30%
+20%
+35%
+40%
+52%
+S03
+60%
+65%
+55%
+58%
+60%
+S04
+75%
+80%
+90%
+82%
+90%
+S05
+45%
+48%
+40%
+30%
+35%
+S06
+90%
+85%
+88%
+92%
+95%
+S07
+55%
+51%
+50%
+55%
+60%
+S08
+40%
+35%
+42%
+48%
+20%
+S09
+65%
+72%
+68%
+70%
+75%
+S10
+70%
+60%
+65%
+65%
+68%
+Step 5: Final Aggregation Logic
+Count Students >= 50% Target:
+CO1: 7 students (S01, 03, 04, 07, 09, 10, 06)
+CO2: 6 students (S03, 04, 06, 07, 09, 10)
+CO3: 7 students (S01, 03, 04, 06, 07, 09, 10)
+CO4: 7 students (S01, 03, 04, 06, 07, 09, 10)
+CO5: 7 students (S01, 02, 03, 04, 06, 07, 09)
+Calculate Class Percentage:
+CO1: 70% | CO2: 60% | CO3: 70% | CO4: 70% | CO5: 70%
+Map to Attainment Levels (L3:80%, L2:70%, L1:60%):
+CO1: 70% meets Level 2 threshold. Final: 2
+CO2: 60% meets Level 1 threshold. Final: 1
+CO3: 70% meets Level 2 threshold. Final: 2
+CO4: 70% meets Level 2 threshold. Final: 2
+CO5: 70% meets Level 2 threshold. Final: 2
+
+--- Excel Content ---
+Error reading Excel: `Import openpyxl` failed.  Use pip or conda to install the openpyxl package.
