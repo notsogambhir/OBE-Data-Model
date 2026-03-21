@@ -1,204 +1,71 @@
-# 📊 CO Attainment Data Model
+# CO Attainment from Student Marks
 
-A zero-dependency Python tool that calculates **Course Outcome (CO) Attainment Levels** from student marks, following the **NBA OBE (Outcome-Based Education)** framework.
+A comprehensive, automated pipeline for calculating Course Outcome (CO) attainment levels based on raw student marks in an Outcome-Based Education (OBE) framework.
 
----
+## 📌 Overview
 
-## 📁 Project Structure
+In Outcome-Based Education, student success is measured not just by total scores, but by proficiency in specific **Course Outcomes (COs)**. This project provides a calculation engine that processes raw student assessment data, evaluates it against predefined targets, applies weighted aggregations across multiple exam types, and outputs final class-level attainment levels.
 
-```
-Data MODEL/
-├── co_attainment.py                 # Standalone calculation script
-├── CO_Attainment_Calculator.ipynb   # Jupyter/Colab notebook (detailed walkthrough)
-├── Input 1.xlsx                     # Sample input (6 COs, 2-weight)
-├── Input 2.xlsx                     # Sample input (6 COs, different COs per exam)
-├── Input 3.xlsx                     # Sample input (6 COs, 3-weight with Assignment)
-├── Output_Input 1.xlsx              # Generated output
-├── Output_Input 2.xlsx              # Generated output
-├── Output_Input 3.xlsx              # Generated output
-├── nb_part1.py                      # Notebook generator (Part 1)
-├── nb_part2.py                      # Notebook generator (Part 2)
-└── README.md                        # This file
-```
+This repository houses multiple implementations of the calculation engine, including pandas-based versions (`GEM_fixed.py`, `co_attainment_pandas.py`) and a lightweight, standard-library-only version (`co_attainment.py`).
 
 ---
 
-## 🚀 Quick Start
+## 🔄 End-to-End Data Flow
 
-### Option 1: Python Script
+The calculation process follows a strict, step-by-step pipeline from raw data ingestion to final level assignment.
+
+### 1. The Input (Excel Files)
+The system reads assessment data from standardized Excel files. Each file represents a course and contains three types of sheets:
+- **`OBE Details`**: The configuration sheet. Defines the target threshold percentage (e.g., 60%), default weights for different assessment categories (Internal vs. External), and the class success thresholds for Attainment Levels (e.g., Level 3 if 80%+ students meet the target).
+- **`[Exam Name] Mapping`**: Defines the assessment structure. Maps individual questions (Q1, Q2, etc.) to one or more COs and specifies the maximum marks for each question.
+- **`[Exam Name] Result`**: Contains raw marks obtained by each student on every question.
+
+### 2. Tier 1: Individual Student CO Performance
+For every student in a specific exam, the engine calculates their proficiency in each mapped CO:
+- **Identify Linked Questions**: Finds all questions mapped to a specific CO.
+- **Filter Unattempted**: If a student did not attempt a question (marked as empty, 'U', 'AB', or NaN), it is excluded from both the maximum marks and obtained marks. This ensures students are not penalized for unattempted/optional questions.
+- **Calculate Percentage**: `(Sum of Obtained Marks / Sum of Max Marks) * 100`
+
+### 3. Tier 2: Weighted Integration Across Exams
+Exams are categorized (Internal, External, Assignment) based on their names (e.g., "ST1", "ETE", "ASN").
+- The system averages the CO percentages for all exams within a single category.
+- It then applies the weights defined in the `OBE Details` sheet to calculate a **Final Weighted CO Percentage** for each student.
+
+### 4. Tier 3: Class-Level Attainment Evaluation
+Once individual weighted scores are calculated, the engine zooms out to the class level:
+- **Target Filtering**: For each CO, it counts how many students achieved a score greater than or equal to the **Target Percentage** (e.g., 60%).
+- **Success Rate**: Calculates the percentage of the class that met the target (`Students Meeting Target / Total Valid Students`).
+- **Level Assignment**: Computes the final Attainment Level (0, 1, 2, or 3) by comparing the Success Rate against the `OBE Details` thresholds.
+
+---
+
+## 🛠️ Technical Implementation & Usage
+
+### Core Scripts
+- **`co_attainment.py`**: A robust, dependency-free implementation that uses Python's built-in `zipfile` and `xml.etree` to parse `.xlsx` files. Ideal for environments where `pandas` is unavailable.
+- **`GEM_fixed.py` / `co_attainment_pandas.py`**: Pandas-dependent implementations that offer concise vector-based calculations and utilize `openpyxl`.
+
+### How to Run
+You can process a single file or multiple files in batch:
 ```bash
-python co_attainment.py "Input 1.xlsx" "Input 2.xlsx" "Input 3.xlsx"
+# Process a specific file (Dependencies: pandas, openpyxl for GEM_fixed.py)
+python GEM_fixed.py "Input 1.xlsx"
+
+# Using the dependency-free script
+python co_attainment.py "Input 1.xlsx"
 ```
+If no file is specified, the script automatically processes all files in the directory matching the `Input*.xlsx` pattern.
 
-### Option 2: Jupyter / Colab Notebook
-1. Open `CO_Attainment_Calculator.ipynb`
-2. Set `INPUT_FILES` in Section 2
-3. **Run All** cells
-
-> **No external libraries required.** The tool uses only Python's standard library (`zipfile`, `xml`).
+### The Output
+For each processed input file, the script generates an `Output_[filename].xlsx` file alongside it. The output contains:
+1. **Student Details**: A comprehensive sheet showing every student's Roll Number, Name, calculated % for each CO, and a simple Yes/No on whether they met the target.
+2. **Attainment Summary**: The high-level overview detailing the total students attempted, number of students meeting the target, overall success rate, and the final evaluated Attainment Level for each CO.
+3. **Configuration / Settings**: A reflection of the targets, weights, and thresholds used during calculation for transparency and auditing.
 
 ---
 
-## 📐 Data Model Overview
-
-### Input File Structure
-
-Each input `.xlsx` file must contain these sheet types:
-
-| Sheet | Purpose | Example |
-|---|---|---|
-| **OBE Details** | Configuration (target, weights, levels) | Always the **first** sheet |
-| **\<Exam\> Ques Mapping** | Question → CO mapping matrix | `ST1 Ques Mapping` |
-| **\<Exam\> Result** | Student marks per question | `ST1 Result` |
-
-### 1. OBE Details Sheet (Configuration)
-
-This sheet defines all calculation parameters:
-
-```
-┌──────────────────────────────────┬────────────┐
-│ CO Score                         │ Percentage │
-├──────────────────────────────────┼────────────┤
-│ Threshold                        │ 60         │  ← Target %
-│                                  │            │
-│ Types                            │ Weightages │
-│ Internal (Avg of ST1,ST2,ST3)    │ 0.4        │  ← Weight categories
-│ External(ETE)                    │ 0.6        │
-│ Assignment                       │ 0.1        │  ← Optional
-│                                  │            │
-│ CO Score                         │ % students │
-│ 3                                │ 0.8        │  ← Level thresholds
-│ 2                                │ 0.7        │
-│ 1                                │ 0.6        │
-└──────────────────────────────────┴────────────┘
-```
-
-**Dynamic features:**
-- Supports **2-weight** (Internal + External) or **3-weight** (+ Assignment) schemes
-- All thresholds and targets are read from the sheet, not hardcoded
-
-### 2. Question Mapping Sheet
-
-Defines which questions test which COs (many-to-many relationship):
-
-```
-┌───────┬───────────┬─────┬─────┬─────┬─────┐
-│ Q_Id  │ Max Marks │ CO1 │ CO2 │ CO3 │ CO4 │
-├───────┼───────────┼─────┼─────┼─────┼─────┤
-│ Q1    │ 5         │  1  │  0  │  0  │  1  │  ← Q1 tests CO1 AND CO4
-│ Q2    │ 2         │  0  │  1  │  0  │  0  │  ← Q2 tests only CO2
-│ Q3    │ 10        │  1  │  1  │  0  │  0  │  ← Q3 tests CO1 AND CO2
-└───────┴───────────┴─────┴─────┴─────┴─────┘
-```
-
-**Dynamic features:**
-- Handles **2 to 8+ COs** — detected from column headers
-- Different exams can have **different CO columns** (e.g., ST1 has CO1/CO2, ST2 has CO3/CO4)
-- Questions with max marks = 0 are automatically skipped (handles empty ST3 sheets)
-
-### 3. Result Sheet
-
-Contains student marks per question:
-
-```
-┌───────┬─────────────┬────────┬────────┬─────┬────┬────┬────┬───────┐
-│ Sr.no │ Admission   │ Name   │ Course │ Exam│ Q1 │ Q2 │ Q3 │ Total │
-├───────┼─────────────┼────────┼────────┼─────┼────┼────┼────┼───────┤
-│ 1     │ 2010990089  │ ANSH   │ EC114  │ ST1 │ 4  │ U  │ 8  │ 12    │
-│ 2     │ 2010992002  │ PANSY  │ EC114  │ ST1 │ 5  │ 2  │    │ 7     │
-└───────┴─────────────┴────────┴────────┴─────┴────┴────┴────┴───────┘
-```
-
-**Unattempted markers** (all treated identically):
-- `U` — explicitly marked unattempted
-- *(blank/empty)* — no entry
-- `AB` — absent
-
----
-
-## 🧮 Calculation Pipeline
-
-```
-Step 1                Step 2                Step 3              Step 4
-Parse OBE     →    Discover Exams   →   Parse Mappings   →  Per-Student
-Config               (ST1, ETE...)       & Results           CO% per Exam
-                                                                 │
-                                                                 ▼
-Step 8                Step 7               Step 6              Step 5
-Assign Level  ←   Class Success    ←   Target Check     ←  Weighted
-(0, 1, 2, 3)       Rate per CO         per Student         Average
-```
-
-### Step-by-Step Detail
-
-#### Step 4: Per-Student CO Percentage (Core Formula)
-
-```
-              Σ (obtained marks on attempted questions mapped to this CO)
-CO % = ──────────────────────────────────────────────────────────────────── × 100
-              Σ (max marks on attempted questions mapped to this CO)
-```
-
-**Critical rule:** Unattempted questions are excluded from **both** numerator and denominator.
-
-| Question | Max | CO1 Mapped | Score | Included? |
-|---|---|---|---|---|
-| Q1 | 10 | ✅ | 8 | ✅ Yes (attempted + mapped) |
-| Q2 | 10 | ✅ | U | ❌ No (unattempted) |
-| Q3 | 5 | ❌ | 4 | ❌ No (not mapped to CO1) |
-
-**CO1% = 8 / 10 = 80%** *(only Q1 counts)*
-
-#### Step 5: Weighted Average
-
-```
-Final CO% = (Internal_Avg × W_int) + (External% × W_ext) + (Assignment% × W_asn)
-```
-
-Where `Internal_Avg` = mean of all ST exam CO percentages for that student.
-
-#### Step 6–8: Class Aggregation
-
-```
-Success Rate = (Students meeting target) / (Students with valid data) × 100
-
-Level 3  if  Success Rate ≥ 80%
-Level 2  if  Success Rate ≥ 70%
-Level 1  if  Success Rate ≥ 60%
-Level 0  otherwise
-```
-
----
-
-## 📤 Output Format
-
-Each output `.xlsx` file contains 3 sheets:
-
-| Sheet | Contents |
-|---|---|
-| **Student Details** | Per-student final CO%, target met (Yes/No) |
-| **Attainment Summary** | Per-CO: attempted, met target, success rate, level |
-| **Configuration** | Target %, weights, thresholds used |
-
----
-
-## 🔧 Flexibility & Edge Cases
-
-| Scenario | How It's Handled |
-|---|---|
-| 2 to 8+ COs per exam | CO columns detected dynamically from headers |
-| Variable exams (ST1/ST2/ST3/ETE/ASN) | Discovered automatically from sheet names |
-| 2-weight or 3-weight schemes | Read from OBE Details sheet |
-| Empty ST3 (all zeros) | Automatically skipped |
-| Student absent from one exam | That exam contributes nothing; others still counted |
-| All questions unattempted for a CO | Returns N/A (not 0%) |
-| Many-to-many Q→CO mapping | Question marks contribute fully to ALL mapped COs |
-| Non-breaking spaces in names | Cleaned automatically |
-
----
-
-## 📖 Reference
-
-Based on:
-- **NBA OBE Framework** — National Board of Accreditation, Outcome-Based Education
-- [11_Process_CO_Attainment_from_Marks.md](11_Process_CO_Attainment_from_Marks.md) — Detailed process specification
+## 🛡️ Key Data Integrity Rules Enforced
+1. **Dynamic Scaling**: Supports any arbitrary number of COs (CO1 to CO8+) and an unlimited number of questions per exam.
+2. **Fair Grading**: Unattempted questions natively bypass the grading denominator for the individual, preventing unfair percentage drops.
+3. **Weightage Normalization**: Proper proportional distribution of weights depending on the assessment category logic derived dynamically from input files.
+4. **Multiple CO Mapping**: A single question can map to multiple COs; the calculation engine respects shared impact correctly.

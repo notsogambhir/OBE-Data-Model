@@ -1,204 +1,80 @@
-# 📊 CO Attainment Data Model
+# NBA OBE Data Model & Automation Project
 
-A zero-dependency Python tool that calculates **Course Outcome (CO) Attainment Levels** from student marks, following the **NBA OBE (Outcome-Based Education)** framework.
+Welcome to the central repository for Outcome-Based Education (OBE) data management and CO Attainment tracking. This project embodies the evolution of our CO Attainment calculation methodology, moving from a fully manual Excel-based framework (Phase 1) to a decoupled, automated Python-driven engine (Phase 2).
 
----
-
-## 📁 Project Structure
-
-```
-Data MODEL/
-├── co_attainment.py                 # Standalone calculation script
-├── CO_Attainment_Calculator.ipynb   # Jupyter/Colab notebook (detailed walkthrough)
-├── Input 1.xlsx                     # Sample input (6 COs, 2-weight)
-├── Input 2.xlsx                     # Sample input (6 COs, different COs per exam)
-├── Input 3.xlsx                     # Sample input (6 COs, 3-weight with Assignment)
-├── Output_Input 1.xlsx              # Generated output
-├── Output_Input 2.xlsx              # Generated output
-├── Output_Input 3.xlsx              # Generated output
-├── nb_part1.py                      # Notebook generator (Part 1)
-├── nb_part2.py                      # Notebook generator (Part 2)
-└── README.md                        # This file
-```
+This document serves as the global guide explaining the end-to-end workflows of both phases.
 
 ---
 
-## 🚀 Quick Start
+## 🏗️ Phase 1: Excel-Based OBE Management
 
-### Option 1: Python Script
-```bash
-python co_attainment.py "Input 1.xlsx" "Input 2.xlsx" "Input 3.xlsx"
-```
+**Directory:** `/Excel/`
 
-### Option 2: Jupyter / Colab Notebook
-1. Open `CO_Attainment_Calculator.ipynb`
-2. Set `INPUT_FILES` in Section 2
-3. **Run All** cells
+In the initial phase of our OBE implementation, the entire ecosystem—from data collection to complex aggregations—was managed entirely within Microsoft Excel (`Combined_legacy/` and `Individual_Updated/`). 
 
-> **No external libraries required.** The tool uses only Python's standard library (`zipfile`, `xml`).
+### End-to-End Workflow (Phase 1)
 
----
+1. **Workbook Structuring:** A massive Excel workbook was created for a specific course merging multiple assessments (Quizzes, Mid-Terms, End-Terms).
+2. **Manual CO Mapping:** Teachers would set up a matrix at the top of the spreadsheet to strictly map each question column to specific Course Outcomes (CO1, CO2, etc.).
+3. **Raw Data Entry:** Instructors manually entered raw student marks for each question across hundreds of rows.
+4. **Individual Calculation (Formulas):** Complex `SUM(IF(...))` or `SUMPRODUCT` formulas were built at the end of each student row to:
+   - Sum the marks the student earned for questions mapped to a specific CO.
+   - Sum the maximum marks possible for that specific CO.
+   - Calculate the percentage `(Obtained / Max) * 100`.
+5. **Target Thresholding:** Nested `IF` statements evaluated whether the calculated percentage met the predefined department target (e.g., `>= 60%`), marking the cell with a `1` (Attained) or `0` (Not Attained).
+6. **Class Aggregation:** At the bottom of the worksheet, `COUNTIF` formulas aggregated the successes to determine the **Class Success Rate** (e.g., 65% of the class attained CO1).
+7. **Level Assignment:** Further nested `IF` statements converted the success rate into an Attainment Level (e.g., Level 1, 2, or 3).
+8. **Cross-Exam Integration:** Final CO attainment across the entire semester required manually linking cells from different interconnected workbook sheets to apply Internal (e.g., 40%) vs. External (e.g., 60%) weightages.
 
-## 📐 Data Model Overview
-
-### Input File Structure
-
-Each input `.xlsx` file must contain these sheet types:
-
-| Sheet | Purpose | Example |
-|---|---|---|
-| **OBE Details** | Configuration (target, weights, levels) | Always the **first** sheet |
-| **\<Exam\> Ques Mapping** | Question → CO mapping matrix | `ST1 Ques Mapping` |
-| **\<Exam\> Result** | Student marks per question | `ST1 Result` |
-
-### 1. OBE Details Sheet (Configuration)
-
-This sheet defines all calculation parameters:
-
-```
-┌──────────────────────────────────┬────────────┐
-│ CO Score                         │ Percentage │
-├──────────────────────────────────┼────────────┤
-│ Threshold                        │ 60         │  ← Target %
-│                                  │            │
-│ Types                            │ Weightages │
-│ Internal (Avg of ST1,ST2,ST3)    │ 0.4        │  ← Weight categories
-│ External(ETE)                    │ 0.6        │
-│ Assignment                       │ 0.1        │  ← Optional
-│                                  │            │
-│ CO Score                         │ % students │
-│ 3                                │ 0.8        │  ← Level thresholds
-│ 2                                │ 0.7        │
-│ 1                                │ 0.6        │
-└──────────────────────────────────┴────────────┘
-```
-
-**Dynamic features:**
-- Supports **2-weight** (Internal + External) or **3-weight** (+ Assignment) schemes
-- All thresholds and targets are read from the sheet, not hardcoded
-
-### 2. Question Mapping Sheet
-
-Defines which questions test which COs (many-to-many relationship):
-
-```
-┌───────┬───────────┬─────┬─────┬─────┬─────┐
-│ Q_Id  │ Max Marks │ CO1 │ CO2 │ CO3 │ CO4 │
-├───────┼───────────┼─────┼─────┼─────┼─────┤
-│ Q1    │ 5         │  1  │  0  │  0  │  1  │  ← Q1 tests CO1 AND CO4
-│ Q2    │ 2         │  0  │  1  │  0  │  0  │  ← Q2 tests only CO2
-│ Q3    │ 10        │  1  │  1  │  0  │  0  │  ← Q3 tests CO1 AND CO2
-└───────┴───────────┴─────┴─────┴─────┴─────┘
-```
-
-**Dynamic features:**
-- Handles **2 to 8+ COs** — detected from column headers
-- Different exams can have **different CO columns** (e.g., ST1 has CO1/CO2, ST2 has CO3/CO4)
-- Questions with max marks = 0 are automatically skipped (handles empty ST3 sheets)
-
-### 3. Result Sheet
-
-Contains student marks per question:
-
-```
-┌───────┬─────────────┬────────┬────────┬─────┬────┬────┬────┬───────┐
-│ Sr.no │ Admission   │ Name   │ Course │ Exam│ Q1 │ Q2 │ Q3 │ Total │
-├───────┼─────────────┼────────┼────────┼─────┼────┼────┼────┼───────┤
-│ 1     │ 2010990089  │ ANSH   │ EC114  │ ST1 │ 4  │ U  │ 8  │ 12    │
-│ 2     │ 2010992002  │ PANSY  │ EC114  │ ST1 │ 5  │ 2  │    │ 7     │
-└───────┴─────────────┴────────┴────────┴─────┴────┴────┴────┴───────┘
-```
-
-**Unattempted markers** (all treated identically):
-- `U` — explicitly marked unattempted
-- *(blank/empty)* — no entry
-- `AB` — absent
+### Limitations Addressed by Phase 2
+- **Hardcoded & Fragile:** Changing the number of COs (e.g., from 4 to 6) or adding questions required dragging and modifying hundreds of complex formulas.
+- **Unattempted Question Errors:** Excel formulas struggled to fairly drop unattempted questions from the denominator without creating massive, computationally heavy array formulas.
+- **High Friction:** extremely prone to human error through broken cell references.
 
 ---
 
-## 🧮 Calculation Pipeline
+## 🚀 Phase 2: Python-Based Data Model
 
-```
-Step 1                Step 2                Step 3              Step 4
-Parse OBE     →    Discover Exams   →   Parse Mappings   →  Per-Student
-Config               (ST1, ETE...)       & Results           CO% per Exam
-                                                                 │
-                                                                 ▼
-Step 8                Step 7               Step 6              Step 5
-Assign Level  ←   Class Success    ←   Target Check     ←  Weighted
-(0, 1, 2, 3)       Rate per CO         per Student         Average
-```
+**Directory:** `/Data MODEL/`
 
-### Step-by-Step Detail
+Phase 2 acts as a paradigm shift. We decouple the raw data entry (Excel) from the calculation logic (Python). Excel is now used strictly as a "dumb" data intake template, while Python scripts handle all filtering, weighting, and tier-based aggregations securely in the background.
 
-#### Step 4: Per-Student CO Percentage (Core Formula)
+### End-to-End Workflow (Phase 2)
 
-```
-              Σ (obtained marks on attempted questions mapped to this CO)
-CO % = ──────────────────────────────────────────────────────────────────── × 100
-              Σ (max marks on attempted questions mapped to this CO)
-```
+#### Step 1: Data Ingestion
+1. **Template Preparation:** The user populates standardized Excel templates (`Input 1.xlsx`, etc.). These files have a fixed, simple structure:
+   - **`OBE Details` Sheet:** The configuration hub. The user defines global variables here: Target Percentage (e.g., 60%), Assessment Weights (e.g., Internal 40%, External 60%), and Attainment Level thresholds (e.g., L3 >= 70%).
+   - **`[Exam] Mapping` Sheets:** A simple table mapping each question ID to its Max Marks and its relevance (1 or 0) to specific COs.
+   - **`[Exam] Result` Sheets:** Pure raw student mark entries.
 
-**Critical rule:** Unattempted questions are excluded from **both** numerator and denominator.
+#### Step 2: Engine Execution
+2. The user runs the calculation engine. Depending on preference, they can run:
+   - `GEM_app.py`: A user-friendly desktop GUI where the user browses for the input file and clicks "Run".
+   - `GEM_fixed.py` / `co_attainment_pandas.py`: Pandas-accelerated calculation engines for CLI processing.
+   - `co_attainment.py`: A lightweight standard-library python alternative.
 
-| Question | Max | CO1 Mapped | Score | Included? |
-|---|---|---|---|---|
-| Q1 | 10 | ✅ | 8 | ✅ Yes (attempted + mapped) |
-| Q2 | 10 | ✅ | U | ❌ No (unattempted) |
-| Q3 | 5 | ❌ | 4 | ❌ No (not mapped to CO1) |
+#### Step 3: Dynamic Calculation (Tier 1 - Individual)
+3. **Parsing & Mapping:** The script dynamically parses the `OBE Details`. It doesn't matter if there are 2 COs or 12 COs; the script adapts automatically by reading the mapping headers.
+4. **Fair Grading Algorithm:** The engine iterates through every student's record. For every mapped question, it calculates the CO percentage. **Crucially, if a student left a question blank (unattempted/absent), the script dynamically removes that specific question's max marks from their individual denominator**, ensuring fair evaluation.
 
-**CO1% = 8 / 10 = 80%** *(only Q1 counts)*
+#### Step 4: Weighted Integration (Tier 2 - Cross Assessment)
+5. **Category Grouping:** The engine groups all exams (e.g., grouping `ST1` and `ST2` into the `Internal` category based on naming conventions).
+6. **Averaging & Weighting:** It averages the CO percentages within each category, and then multiplies them by the weights defined in the `OBE Details` sheet to compute a single **Final Weighted CO Percentage** per student.
 
-#### Step 5: Weighted Average
+#### Step 5: Class Evaluation (Tier 3 - Global)
+7. **Success Counting:** The engine evaluates every student's Final Weighted CO Percentage against the Target Threshold to compute the overall **Class Success Rate** for each CO.
+8. **Level Mapping:** The computed Success Rate is compared against the Attainment Levels thresholds to lock in the final Level (0, 1, 2, or 3).
 
-```
-Final CO% = (Internal_Avg × W_int) + (External% × W_ext) + (Assignment% × W_asn)
-```
-
-Where `Internal_Avg` = mean of all ST exam CO percentages for that student.
-
-#### Step 6–8: Class Aggregation
-
-```
-Success Rate = (Students meeting target) / (Students with valid data) × 100
-
-Level 3  if  Success Rate ≥ 80%
-Level 2  if  Success Rate ≥ 70%
-Level 1  if  Success Rate ≥ 60%
-Level 0  otherwise
-```
+#### Step 6: Output Generation
+9. **Automated Reporting:** The Python engine generates a pristine `Output_[Filename].xlsx` without altering the original input file. The output contains:
+   - **Student Details:** A complete breakdown of every student's CO percentages and whether they met the target.
+   - **Attainment Summary:** The high-level analytics table defining the final Attainment levels across the class.
+   - **Configuration:** A stamp of the weights and targets used for the calculation, ensuring historical auditability.
 
 ---
 
-## 📤 Output Format
+## 🚀 How to Utilize This Repository
+1. For historical data or strictly manual template structures, reference the `/Excel/` folder.
+2. For processing new assessment data, fill out the standardized `.xlsx` templates and run them through the apps provided in the `/Data MODEL/` directory for automated processing.
 
-Each output `.xlsx` file contains 3 sheets:
-
-| Sheet | Contents |
-|---|---|
-| **Student Details** | Per-student final CO%, target met (Yes/No) |
-| **Attainment Summary** | Per-CO: attempted, met target, success rate, level |
-| **Configuration** | Target %, weights, thresholds used |
-
----
-
-## 🔧 Flexibility & Edge Cases
-
-| Scenario | How It's Handled |
-|---|---|
-| 2 to 8+ COs per exam | CO columns detected dynamically from headers |
-| Variable exams (ST1/ST2/ST3/ETE/ASN) | Discovered automatically from sheet names |
-| 2-weight or 3-weight schemes | Read from OBE Details sheet |
-| Empty ST3 (all zeros) | Automatically skipped |
-| Student absent from one exam | That exam contributes nothing; others still counted |
-| All questions unattempted for a CO | Returns N/A (not 0%) |
-| Many-to-many Q→CO mapping | Question marks contribute fully to ALL mapped COs |
-| Non-breaking spaces in names | Cleaned automatically |
-
----
-
-## 📖 Reference
-
-Based on:
-- **NBA OBE Framework** — National Board of Accreditation, Outcome-Based Education
-- [11_Process_CO_Attainment_from_Marks.md](11_Process_CO_Attainment_from_Marks.md) — Detailed process specification
+*Designed to simplify, automate, and standardize NBA OBE Compliance across all courses.*
