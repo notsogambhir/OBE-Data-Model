@@ -7,7 +7,7 @@ class InputGeneratorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Input File Generator for CO Attainment")
-        self.root.geometry("600x550")
+        self.root.geometry("600x750")
         self.root.resizable(False, False)
         
         # Data structure to hold exam details
@@ -24,6 +24,26 @@ class InputGeneratorApp:
         
         lbl_title = tk.Label(main_frame, text="Generate Custom Input Excel File", font=("Arial", 14, "bold"))
         lbl_title.pack(pady=(0, 10))
+        
+        # ─── OBE CONFIGURATION ───
+        frame_obe = tk.LabelFrame(main_frame, text="OBE Configuration", padx=10, pady=10, font=("Arial", 10, "bold"))
+        frame_obe.pack(fill=tk.X, pady=5)
+        
+        tk.Label(frame_obe, text="Target Threshold (%):").grid(row=0, column=0, sticky='w', pady=5)
+        self.threshold_var = tk.DoubleVar(value=60.0)
+        tk.Entry(frame_obe, textvariable=self.threshold_var, width=15).grid(row=0, column=1, padx=10, pady=5)
+        
+        tk.Label(frame_obe, text="Level 3 Target (%):").grid(row=1, column=0, sticky='w', pady=5)
+        self.level3_var = tk.DoubleVar(value=80.0)
+        tk.Entry(frame_obe, textvariable=self.level3_var, width=15).grid(row=1, column=1, padx=10, pady=5)
+        
+        tk.Label(frame_obe, text="Level 2 Target (%):").grid(row=2, column=0, sticky='w', pady=5)
+        self.level2_var = tk.DoubleVar(value=70.0)
+        tk.Entry(frame_obe, textvariable=self.level2_var, width=15).grid(row=2, column=1, padx=10, pady=5)
+        
+        tk.Label(frame_obe, text="Level 1 Target (%):").grid(row=3, column=0, sticky='w', pady=5)
+        self.level1_var = tk.DoubleVar(value=60.0)
+        tk.Entry(frame_obe, textvariable=self.level1_var, width=15).grid(row=3, column=1, padx=10, pady=5)
         
         # ─── ADD EXAM CONFIGURATION ───
         frame_top = tk.LabelFrame(main_frame, text="Add Exam Configuration", padx=10, pady=10, font=("Arial", 10, "bold"))
@@ -112,6 +132,15 @@ class InputGeneratorApp:
             messagebox.showerror("Error", "Please add at least one exam configuration.")
             return
             
+        try:
+            threshold = self.threshold_var.get()
+            l3 = self.level3_var.get() / 100.0
+            l2 = self.level2_var.get() / 100.0
+            l1 = self.level1_var.get() / 100.0
+        except tk.TclError:
+            messagebox.showerror("Error", "OBE Configuration targets must be valid numbers.")
+            return
+            
         path = filedialog.asksaveasfilename(
             title="Save Input Excel File As",
             defaultextension=".xlsx",
@@ -127,7 +156,7 @@ class InputGeneratorApp:
                 # 1. Write OBE Details sheet
                 obe_data = {
                     "CO Score": ["Threshold", None, None, "Types", "Internal (Avg of ST1,ST2,ST3)", "External(ETE)", None, "CO Score", 3, 2, 1],
-                    "Percentage of Co attained": [60, None, None, "Weightages", 0.4, 0.6, None, "Perecntage of students attaining Target", 0.8, 0.7, 0.6]
+                    "Percentage of Co attained": [threshold, None, None, "Weightages", 0.4, 0.6, None, "Perecntage of students attaining Target", l3, l2, l1]
                 }
                 df_obe = pd.DataFrame(obe_data)
                 df_obe.to_excel(writer, sheet_name="OBE Details", index=False, header=False)
