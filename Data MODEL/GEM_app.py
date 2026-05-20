@@ -16,10 +16,92 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
+try:
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet
+    HAS_REPORTLAB = True
+except ImportError:
+    HAS_REPORTLAB = False
+
 
 # ─────────────────────────────────────────────
 # CALCULATION LOGIC
 # ─────────────────────────────────────────────
+
+def generate_pdf_report(pdf_path, summary_df, final_df, input_file, target, levels):
+    # Calculate required page width to prevent wide tables from being cut off
+    num_cols = len(final_df.columns) + 1  # +1 for the reset index (Roll)
+    required_width = max(landscape(letter)[0], num_cols * 65 + 100)
+    
+    doc = SimpleDocTemplate(pdf_path, pagesize=(required_width, landscape(letter)[1]), rightMargin=30, leftMargin=30)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Title
+    elements.append(Paragraph("CO Attainment Report", styles['Title']))
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(f"Source File: {os.path.basename(input_file)}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Configuration Details
+    elements.append(Paragraph("Configuration Details", styles['Heading2']))
+    elements.append(Spacer(1, 10))
+    
+    config_text = f"<b>Target Threshold:</b> {target}%<br/>"
+    config_text += "<b>Attainment Buckets:</b><br/>"
+    for lvl, pct in levels:
+        config_text += f"&nbsp;&nbsp;&nbsp;&nbsp;Level {lvl}: >= {pct * 100}% of students meeting target<br/>"
+        
+    elements.append(Paragraph(config_text, styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Summary Table
+    elements.append(Paragraph("Attainment Summary", styles['Heading2']))
+    elements.append(Spacer(1, 10))
+    
+    # Prepare summary data
+    summary_data = [summary_df.columns.tolist()]
+    for row in summary_df.values:
+        summary_data.append([str(x) for x in row])
+        
+    summary_table = Table(summary_data, hAlign='LEFT')
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 30))
+    
+    # Student Wise Attainment
+    elements.append(Paragraph("Student-Wise Attainment", styles['Heading2']))
+    elements.append(Spacer(1, 10))
+    
+    student_df = final_df.reset_index()
+    student_data = [student_df.columns.tolist()]
+    for row in student_df.values:
+        student_data.append([str(x) for x in row])
+        
+    student_table = Table(student_data, hAlign='LEFT', repeatRows=1)
+    student_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2196F3')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.aliceblue),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+    ]))
+    elements.append(student_table)
+    
+    doc.build(elements)
 
 def calculate_co_attainment(input_file, output_file=None):
     """Process one Excel file and calculate CO attainment."""
@@ -265,6 +347,16 @@ def calculate_co_attainment(input_file, output_file=None):
         summary_df.to_excel(writer, sheet_name='Attainment Summary', index=False)
 
     print(f"  Saved: {output_file}")
+
+    # --- STEP 7: Save results to PDF ---
+    if HAS_REPORTLAB:
+        base, _ = os.path.splitext(output_file)
+        pdf_file = base + '.pdf'
+        try:
+            generate_pdf_report(pdf_file, summary_df, final, input_file, target, levels)
+            print(f"  Saved PDF: {pdf_file}")
+        except Exception as e:
+            print(f"  Failed to save PDF: {e}")
 
 
 # ─────────────────────────────────────────────
